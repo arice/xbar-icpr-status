@@ -8,10 +8,12 @@
 # <xbar.image>https://askadam.io/imgs/xbar-icpr-image.png</xbar.image>
 # <xbar.dependencies>curl</xbar.dependencies>
 
+# based on CodinCafe's "My External IP" plugin, thanks for the code!
+
 if [ $(curl -LI http://google.com -o /dev/null -w '%{http_code}\n' -s) == "200" ]; then
 # we have an internet connection
     wanIP=$(curl -s https://ipinfo.io/ip)
-    iCloudPrivateRelayIP=$(CURL -s http://ifconfig.me)
+    iCloudPrivateRelayIP=$(curl -s http://ifconfig.me)
     # using http and ifconfig.me seems to reliably return the iCloud Private Relay IP if Private Relay is enabled
 
     # build the strings to use for the menu output
@@ -23,13 +25,19 @@ if [ $(curl -LI http://google.com -o /dev/null -w '%{http_code}\n' -s) == "200" 
     # HEY! need to figure out a way to grab this daily instead of each update, because
     # the file is about 9 MB
 
-    rm /tmp/io.askadam.egress-ip-ranges*.csv # don't fill up your storage with these!
 
-    timestamp=$(date +%s)
-    egresses="io.askadam.egress-ip-ranges-$timestamp.csv"
-    curl --location --silent "https://mask-api.icloud.com/egress-ip-ranges.csv" -o "/tmp/$egresses"    
-    iCloudEgressList="/tmp/$egresses"
+    mkdir -p "${TMPDIR}io.askadam"
+    egresses="egress-ip-ranges.csv"
+    iCloudEgressList="${TMPDIR}io.askadam/$egresses"
     
+    # get a new copy of the egress ips every few days rather than every run
+    if [ ! -f "$iCloudEgressList" ]; then
+        curl --location --silent "https://mask-api.icloud.com/egress-ip-ranges.csv" -o "$iCloudEgressList"         
+    elif [[ $(find "$iCloudEgressList" -mtime +3 -print) ]]; then # it's older than 7 days; delete and get a new one
+        rm iCloudEgressList
+        curl --location --silent "https://mask-api.icloud.com/egress-ip-ranges.csv" -o "$iCloudEgressList"         
+    fi
+  
     # test if our potential relay IP shows up in the list we just got from Apple
     ICPResult_in_EgressList=$(grep "$iCloudPrivateRelayIP" "$iCloudEgressList")
     
@@ -55,6 +63,8 @@ echo '---'
 echo "$wanresult_string"
 if [ "$ICP_active" = true ]; then
     echo "$icprresult_string"
+else
+    echo "iCloud Private Relay is NOT active"
 fi
 
 # menu items for screenshot
