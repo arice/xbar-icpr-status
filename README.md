@@ -1,5 +1,5 @@
 # DEPRECATED
-fresh code is in my fork of the xbar-plugins repo
+fresh code is in my fork of the xbar-plugins repo: https://github.com/arice/xbar-plugins
 
 ----
 
